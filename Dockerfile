@@ -31,10 +31,12 @@ FROM debian:bookworm-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         libssl3 \
+        python3 \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=builder /build/ike-scan   /usr/local/bin/ike-scan
-COPY --from=builder /build/psk-crack  /usr/local/bin/psk-crack
+COPY --from=builder /build/ike-scan    /usr/local/bin/ike-scan
+COPY --from=builder /build/psk-crack   /usr/local/bin/psk-crack
+COPY ikev2_enum.py                     /usr/local/bin/ikev2-enum.py
 COPY --from=builder /build/ike-vendor-ids       /usr/local/share/ike-scan/
 COPY --from=builder /build/ike-backoff-patterns /usr/local/share/ike-scan/
 COPY --from=builder /build/psk-crack-dictionary /usr/local/share/ike-scan/
