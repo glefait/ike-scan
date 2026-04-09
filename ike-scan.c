@@ -2197,7 +2197,66 @@ initialise_ike_packet(size_t *packet_out_len, ike_packet_params *params) {
    if (params->ike_version != 1) {	/* IKEv2 Transforms */
       unsigned char *attr;
       size_t attr_len;
+      unsigned char *transforms_aead;
+      size_t trans_len_aead;
+      int no_trans_aead;
 
+      /*
+       * Proposal 1: AEAD ciphers (RFC 5282, RFC 7634).
+       * Per RFC 7296 s3.3, AEAD proposals MUST NOT include an INTEG transform.
+       * Key-length attribute is required for AES-GCM/CCM (128 or 256 bit).
+       * ChaCha20-Poly1305 has a fixed 256-bit key - no attribute needed.
+       */
+      /* AES-GCM-16 (most widely deployed AEAD) */
+      add_attr(0, NULL, 'B', OAKLEY_KEY_LENGTH, 0, 256, NULL);
+      attr = add_attr(1, &attr_len, '\0', 0, 0, 0, NULL);
+      add_transform2(0, NULL, IKEV2_TYPE_ENCR, IKEV2_ENCR_AES_GCM_16, attr, attr_len);
+      free(attr);
+      add_attr(0, NULL, 'B', OAKLEY_KEY_LENGTH, 0, 128, NULL);
+      attr = add_attr(1, &attr_len, '\0', 0, 0, 0, NULL);
+      add_transform2(0, NULL, IKEV2_TYPE_ENCR, IKEV2_ENCR_AES_GCM_16, attr, attr_len);
+      free(attr);
+      /* AES-GCM-12 */
+      add_attr(0, NULL, 'B', OAKLEY_KEY_LENGTH, 0, 256, NULL);
+      attr = add_attr(1, &attr_len, '\0', 0, 0, 0, NULL);
+      add_transform2(0, NULL, IKEV2_TYPE_ENCR, IKEV2_ENCR_AES_GCM_12, attr, attr_len);
+      free(attr);
+      add_attr(0, NULL, 'B', OAKLEY_KEY_LENGTH, 0, 128, NULL);
+      attr = add_attr(1, &attr_len, '\0', 0, 0, 0, NULL);
+      add_transform2(0, NULL, IKEV2_TYPE_ENCR, IKEV2_ENCR_AES_GCM_12, attr, attr_len);
+      free(attr);
+      /* AES-GCM-8 */
+      add_attr(0, NULL, 'B', OAKLEY_KEY_LENGTH, 0, 256, NULL);
+      attr = add_attr(1, &attr_len, '\0', 0, 0, 0, NULL);
+      add_transform2(0, NULL, IKEV2_TYPE_ENCR, IKEV2_ENCR_AES_GCM_8, attr, attr_len);
+      free(attr);
+      add_attr(0, NULL, 'B', OAKLEY_KEY_LENGTH, 0, 128, NULL);
+      attr = add_attr(1, &attr_len, '\0', 0, 0, 0, NULL);
+      add_transform2(0, NULL, IKEV2_TYPE_ENCR, IKEV2_ENCR_AES_GCM_8, attr, attr_len);
+      free(attr);
+      /* ChaCha20-Poly1305 (fixed 256-bit key, no key-length attr) */
+      add_transform2(0, NULL, IKEV2_TYPE_ENCR, IKEV2_ENCR_CHACHA20_POLY1305, NULL, 0);
+      /* PRF - modern first */
+      add_transform2(0, NULL, IKEV2_TYPE_PRF, IKEV2_PRF_HMAC_SHA2_512, NULL, 0);
+      add_transform2(0, NULL, IKEV2_TYPE_PRF, IKEV2_PRF_HMAC_SHA2_384, NULL, 0);
+      add_transform2(0, NULL, IKEV2_TYPE_PRF, IKEV2_PRF_HMAC_SHA2_256, NULL, 0);
+      add_transform2(0, NULL, IKEV2_TYPE_PRF, IKEV2_PRF_HMAC_SHA1, NULL, 0);
+      /* DH - modern ECP groups first, then MODP */
+      add_transform2(0, NULL, IKEV2_TYPE_DH, IKEV2_DH_ECP_256, NULL, 0);
+      add_transform2(0, NULL, IKEV2_TYPE_DH, IKEV2_DH_ECP_384, NULL, 0);
+      add_transform2(0, NULL, IKEV2_TYPE_DH, IKEV2_DH_ECP_521, NULL, 0);
+      add_transform2(0, NULL, IKEV2_TYPE_DH, IKEV2_DH_CURVE25519, NULL, 0);
+      add_transform2(0, NULL, IKEV2_TYPE_DH, IKEV2_DH_MODP_2048, NULL, 0);
+      add_transform2(0, NULL, IKEV2_TYPE_DH, IKEV2_DH_MODP_3072, NULL, 0);
+      add_transform2(0, NULL, IKEV2_TYPE_DH, IKEV2_DH_MODP_4096, NULL, 0);
+      /* No INTEG for AEAD proposals */
+      transforms_aead = add_transform2(1, &trans_len_aead, 0, 0, NULL, 0);
+      no_trans_aead = 18;	/* 7 ENCR + 4 PRF + 7 DH */
+
+      /*
+       * Proposal 2: Non-AEAD (CBC) ciphers with explicit INTEG.
+       */
+      /* AES-CBC */
       add_attr(0, NULL, 'B', OAKLEY_KEY_LENGTH, 0, 256, NULL);
       attr = add_attr(1, &attr_len, '\0', 0, 0, 0, NULL);
       add_transform2(0, NULL, IKEV2_TYPE_ENCR, IKEV2_ENCR_AES_CBC, attr, attr_len);
@@ -2208,29 +2267,48 @@ initialise_ike_packet(size_t *packet_out_len, ike_packet_params *params) {
       free(attr);
       add_transform2(0, NULL, IKEV2_TYPE_ENCR, IKEV2_ENCR_3DES, NULL, 0);
       add_transform2(0, NULL, IKEV2_TYPE_ENCR, IKEV2_ENCR_DES, NULL, 0);
+      /* PRF */
       add_transform2(0, NULL, IKEV2_TYPE_PRF, IKEV2_PRF_HMAC_SHA2_512, NULL, 0);
+      add_transform2(0, NULL, IKEV2_TYPE_PRF, IKEV2_PRF_HMAC_SHA2_384, NULL, 0);
       add_transform2(0, NULL, IKEV2_TYPE_PRF, IKEV2_PRF_HMAC_SHA2_256, NULL, 0);
       add_transform2(0, NULL, IKEV2_TYPE_PRF, IKEV2_PRF_HMAC_SHA1, NULL, 0);
       add_transform2(0, NULL, IKEV2_TYPE_PRF, IKEV2_PRF_HMAC_MD5, NULL, 0);
+      /* INTEG */
       add_transform2(0, NULL, IKEV2_TYPE_INTEG, IKEV2_AUTH_HMAC_SHA2_512_256, NULL, 0);
+      add_transform2(0, NULL, IKEV2_TYPE_INTEG, IKEV2_AUTH_HMAC_SHA2_384_192, NULL, 0);
       add_transform2(0, NULL, IKEV2_TYPE_INTEG, IKEV2_AUTH_HMAC_SHA2_256_128, NULL, 0);
       add_transform2(0, NULL, IKEV2_TYPE_INTEG, IKEV2_AUTH_HMAC_SHA1_96, NULL, 0);
       add_transform2(0, NULL, IKEV2_TYPE_INTEG, IKEV2_AUTH_HMAC_MD5_96, NULL, 0);
-      add_transform2(0, NULL, IKEV2_TYPE_DH, 2, NULL, 0);
-      add_transform2(0, NULL, IKEV2_TYPE_DH, 5, NULL, 0);
-      add_transform2(0, NULL, IKEV2_TYPE_DH, 14, NULL, 0);
-      add_transform2(0, NULL, IKEV2_TYPE_DH, 20, NULL, 0);
-      add_transform2(0, NULL, IKEV2_TYPE_DH, 21, NULL, 0);
+      /* DH */
+      add_transform2(0, NULL, IKEV2_TYPE_DH, IKEV2_DH_ECP_256, NULL, 0);
+      add_transform2(0, NULL, IKEV2_TYPE_DH, IKEV2_DH_ECP_384, NULL, 0);
+      add_transform2(0, NULL, IKEV2_TYPE_DH, IKEV2_DH_ECP_521, NULL, 0);
+      add_transform2(0, NULL, IKEV2_TYPE_DH, IKEV2_DH_CURVE25519, NULL, 0);
+      add_transform2(0, NULL, IKEV2_TYPE_DH, IKEV2_DH_MODP_2048, NULL, 0);
+      add_transform2(0, NULL, IKEV2_TYPE_DH, IKEV2_DH_MODP_1536, NULL, 0);
+      add_transform2(0, NULL, IKEV2_TYPE_DH, IKEV2_DH_MODP_1024, NULL, 0);
       transforms = add_transform2(1, &trans_len, 0, 0, NULL, 0);
-      no_trans=17;
+      no_trans = 21;	/* 4 ENCR + 5 PRF + 5 INTEG + 7 DH */
+
+      /*
+       * Build two proposals into the proposal list:
+       * Proposal 1: AEAD transforms (no INTEG)
+       * Proposal 2: non-AEAD transforms (with INTEG)
+       */
+      add_prop(0, NULL, no_trans_aead, params->protocol, params->spi_size,
+               transforms_aead, trans_len_aead);
+      free(transforms_aead);
+      add_prop(0, NULL, no_trans, params->protocol, params->spi_size,
+               transforms, trans_len);
+      prop = add_prop(1, &prop_len, 0, 0, 0, NULL, 0);
+      free(transforms);
    }
-/*
- *	Proposal payload
- */
-   add_prop(0, NULL, no_trans, params->protocol, params->spi_size, transforms,
-            trans_len);
-   prop = add_prop(1, &prop_len, 0, 0, 0, NULL, 0);
-   free(transforms);
+   if (params->ike_version == 1) {	/* IKEv1 proposal */
+      add_prop(0, NULL, no_trans, params->protocol, params->spi_size, transforms,
+               trans_len);
+      prop = add_prop(1, &prop_len, 0, 0, 0, NULL, 0);
+      free(transforms);
+   }
 /*
  *	SA payload
  */
@@ -3618,9 +3696,12 @@ usage(int status, int detailed) {
       fprintf(stderr, "\t\t\tformat. Any packets returned are automatically decoded\n");
       fprintf(stderr, "\t\t\tas IKE or IKEv2 depending on their payloads irrespective\n");
       fprintf(stderr, "\t\t\tof this option.\n");
-      fprintf(stderr, "\t\t\tThe --ikev2 option is currently experimental. It has not\n");
-      fprintf(stderr, "\t\t\tbeen extensively tested, and it only supports sending\n");
-      fprintf(stderr, "\t\t\tthe default proposal.\n");
+      fprintf(stderr, "\t\t\tThe default IKEv2 proposal includes two sub-proposals:\n");
+      fprintf(stderr, "\t\t\t(1) AEAD: AES-GCM-16/12/8 + ChaCha20-Poly1305 with\n");
+      fprintf(stderr, "\t\t\t    PRF-SHA2-512/384/256/SHA1, DH groups 19/20/21/31/14/15/16\n");
+      fprintf(stderr, "\t\t\t(2) Non-AEAD: AES-CBC-256/128 + 3DES + DES with\n");
+      fprintf(stderr, "\t\t\t    PRF-SHA2-512/384/256/SHA1/MD5, INTEG-SHA2-512/384/256/SHA1/MD5,\n");
+      fprintf(stderr, "\t\t\t    DH groups 19/20/21/31/14/5/2\n");
    } else {
       fprintf(stderr, "use \"ike-scan --help\" for detailed information on the available options.\n");
    }
