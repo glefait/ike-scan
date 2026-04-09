@@ -788,6 +788,16 @@ main(int argc, char *argv[]) {
       warn_msg("WARNING: Specifying the DH Group with --dhgroup or -g does not have any effect\n"
                "         unless you also specify aggressive mode with --aggressive or -A, or\n"
                "         IKEv2 with --ikev2 or -2\n");
+   /*
+    * For IKEv2, the KE payload must use a specific DH group. If the user
+    * did not override --dhgroup, switch from the IKEv1 default (group 2,
+    * MODP-1024) to group 14 (MODP-2048) which is the minimum recommended
+    * by RFC 8247 and is present in both default IKEv2 proposals.
+    * Modern servers that only accept ECP groups will respond with
+    * INVALID_KE_PAYLOAD specifying the group they want; retry with that group.
+    */
+   if (ike_params.ike_version == 2 && ike_params.dhgroup == DEFAULT_DH_GROUP)
+      ike_params.dhgroup = DEFAULT_DH_GROUP_IKEV2;
    if (psk_crack_flag && ike_params.exchange_type != ISAKMP_XCHG_AGGR) {
       warn_msg("WARNING: The --pskcrack (-P) option is only relevant for aggressive mode.\n");
       psk_crack_flag=0;
@@ -2064,41 +2074,65 @@ initialise_ike_packet(size_t *packet_out_len, ike_packet_params *params) {
       next_payload = ISAKMP_NEXT_V2_NONCE;
       switch (params->dhgroup) {
          case 1:
-            kx_data_len = 96;	/* Group 1 - 768 bits */
+            kx_data_len = 96;	/* Group 1  - MODP-768 */
             break;
          case 2:
-            kx_data_len = 128;	/* Group 2 - 1024 bits */
+            kx_data_len = 128;	/* Group 2  - MODP-1024 */
             break;
          case 5:
-            kx_data_len = 192;	/* Group 5 - 1536 bits */
+            kx_data_len = 192;	/* Group 5  - MODP-1536 */
             break;
          case 14:
-            kx_data_len = 256;	/* Group 14 - 2048 bits */
+            kx_data_len = 256;	/* Group 14 - MODP-2048 (default) */
             break;
          case 15:
-            kx_data_len = 384;	/* Group 15 - 3072 bits */
+            kx_data_len = 384;	/* Group 15 - MODP-3072 */
             break;
          case 16:
-            kx_data_len = 512;	/* Group 16 - 4096 bits */
+            kx_data_len = 512;	/* Group 16 - MODP-4096 */
             break;
          case 17:
-            kx_data_len = 768;	/* Group 17 - 6144 bits */
+            kx_data_len = 768;	/* Group 17 - MODP-6144 */
             break;
          case 18:
-            kx_data_len = 1024;	/* Group 18 - 8192 bits */
+            kx_data_len = 1024;	/* Group 18 - MODP-8192 */
             break;
          case 19:
-            kx_data_len = 64;	/* Group 19 - 256+256 bits */
+            kx_data_len = 64;	/* Group 19 - ECP-256, 32+32 bytes */
             break;
          case 20:
-            kx_data_len = 96;	/* Group 20 - 384+384 bits */
+            kx_data_len = 96;	/* Group 20 - ECP-384, 48+48 bytes */
             break;
          case 21:
-            kx_data_len = 132;	/* Group 21 - 528+528 bits */
+            kx_data_len = 132;	/* Group 21 - ECP-521, 66+66 bytes */
+            break;
+         case 22:
+            kx_data_len = 128;	/* Group 22 - MODP-1024/160 (RFC 5114) */
+            break;
+         case 23:
+            kx_data_len = 256;	/* Group 23 - MODP-2048/224 (RFC 5114) */
+            break;
+         case 24:
+            kx_data_len = 256;	/* Group 24 - MODP-2048/256 (RFC 5114) */
+            break;
+         case 28:
+            kx_data_len = 64;	/* Group 28 - Brainpool P-256 (RFC 6954) */
+            break;
+         case 29:
+            kx_data_len = 96;	/* Group 29 - Brainpool P-384 (RFC 6954) */
+            break;
+         case 30:
+            kx_data_len = 128;	/* Group 30 - Brainpool P-512 (RFC 6954) */
+            break;
+         case 31:
+            kx_data_len = 32;	/* Group 31 - Curve25519 (RFC 8031), 32 bytes */
+            break;
+         case 32:
+            kx_data_len = 56;	/* Group 32 - Curve448 (RFC 8031), 56 bytes */
             break;
          default:
             err_msg("ERROR: Bad Diffie Hellman group: %u, "
-                    "should be 1,2,5,14,15,16,17,18,19,20 or 21",
+                    "supported IKEv2 groups: 1,2,5,14-24,28-32",
                     params->dhgroup);	/* Doesn't return */
       }
       ke = make_ke2(&ke_len, next_payload, params->dhgroup, kx_data_len);

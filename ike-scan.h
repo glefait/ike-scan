@@ -159,7 +159,8 @@
 #define DEFAULT_AUTH_METHOD 1		/* Default authentication method */
 #define DEFAULT_END_WAIT 60		/* Default time to wait at end in sec */
 #define DEFAULT_PATTERN_FUZZ 500	/* Default pattern fuzz in ms */
-#define DEFAULT_DH_GROUP 2		/* Default DH group for agg. mode */
+#define DEFAULT_DH_GROUP 2		/* Default DH group for IKEv1 agg. mode */
+#define DEFAULT_DH_GROUP_IKEV2 14	/* Default DH group for IKEv2 KE (MODP-2048, RFC 3526) */
 #define DEFAULT_IDTYPE ID_USER_FQDN	/* Default ID Type for agg. mode */
 #define DEFAULT_EXCHANGE_TYPE ISAKMP_XCHG_IDPROT	/* Main Mode */
 #define DEFAULT_NONCE_LEN 20		/* Default Nonce length in bytes */
